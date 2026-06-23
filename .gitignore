@@ -1,0 +1,41 @@
+# ── Dependencies ──
+node_modules/
+
+# ── Build output ──
+dist/
+dist-ssr/
+target/
+*.local
+/gen/schemas
+
+# ── Logs ──
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ── Credentials / config (MUST NOT commit) ──
+Mihoyo-env.json
+runtime.json
+env.json
+*.env
+
+# ── Superpowers local notes (not for public repository) ──
+docs/superpowers/
+
+# ── OS files ──
+.DS_Store
+Thumbs.db
+
+# ── Editor ──
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

@@ -1,0 +1,28 @@
+[package]
+name = "mihoyo-widget-desktop"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.77.2"
+license = "MIT"
+description = "HSR Desktop Widget - Tauri v2 desktop application"
+
+[lib]
+name = "app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.6.3", features = [] }
+
+[dependencies]
+mihoyo-core = { path = "../../packages/core" }
+game-hsr = { path = "../../packages/game-hsr" }
+tauri = { version = "2.11.3", features = ["tray-icon", "image-png"] }
+tauri-plugin-log = "2"
+tauri-plugin-notification = "2"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1", features = ["full"] }
+log = "0.4"
+chrono = "0.4"
+rand = "0.8"
+reqwest = { version = "0.12", features = ["json"] }

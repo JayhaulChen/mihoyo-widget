@@ -1,0 +1,11 @@
+{
+  "name": "mihoyo-widget-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "cd packages/frontend && npm run dev",
+    "build": "cd packages/frontend && npm run build",
+    "preview": "cd packages/frontend && npm run preview",
+    "install": "cd packages/frontend && npm install"
+  }
+}
