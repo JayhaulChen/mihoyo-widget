@@ -1,0 +1,100 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to build (e.g. v0.1.0-rc1)"
+        required: false
+        default: "v0.1.0-test"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            suffix: ""
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            suffix: ".exe"
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            suffix: ""
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install Linux dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev \
+            libayatana-appindicator3-dev
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build frontend
+        run: |
+          cd packages/frontend
+          npm install
+          npm run build
+
+      - name: Build Tauri app (${{ matrix.os }})
+        uses: tauri-apps/tauri-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        with:
+          projectPath: apps/desktop
+          tagName: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+          releaseName: "Mihoyo Widget ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}"
+          releaseBody: |
+            ## Mihoyo Widget — HSR Desktop Companion
+
+            ### What's new
+
+            - Real-time stamina ring with percentage indicator
+            - Battle challenges: Forgotten Hall, Pure Fiction, Apocalyptic Shadow, Challenge Peak
+            - Banner & event tracker with countdown and progress bars
+            - Monthly stellar jade ledger
+            - Simulated Universe archives (Nous / Magic / Locust)
+            - Dark/Light theme toggle
+            - System tray icon with right-click menu
+            - Desktop notifications for stamina & expeditions
+
+            ### Install
+
+            Download the package for your platform below.
+
+            ### Notes
+
+            - **First launch:** Enter your Cookie/SToken/UID via right-click → Settings
+            - Data refreshes automatically every 90 seconds
+            - Config saved to `~/.config/mihoyo-widget/runtime.json`
+          releaseDraft: ${{ github.event_name != 'push' }}
+          releasePrerelease: false
