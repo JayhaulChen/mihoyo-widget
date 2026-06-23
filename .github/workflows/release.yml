@@ -29,8 +29,8 @@ jobs:
             artifact: mihoyo-widget-x86_64-windows
             ext: ".exe"
           - os: macos-latest
-            target: x86_64-apple-darwin
-            artifact: mihoyo-widget-x86_64-macos
+            target: aarch64-apple-darwin
+            artifact: mihoyo-widget-aarch64-macos
             ext: ""
 
     runs-on: ${{ matrix.os }}
@@ -66,7 +66,9 @@ jobs:
           npm run build
 
       - name: Install Tauri CLI
-        run: cargo install tauri-cli --version "^2.0" --locked
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-tauri
 
       - name: Build Tauri app
         working-directory: apps/desktop
@@ -77,6 +79,5 @@ jobs:
         with:
           name: ${{ matrix.artifact }}
           path: |
-            apps/desktop/target/release/mihoyo-widget${{ matrix.ext }}
             apps/desktop/target/release/bundle/
           if-no-files-found: warn

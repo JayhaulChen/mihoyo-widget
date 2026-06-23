@@ -212,13 +212,19 @@ pub fn run() {
                 m
             };
             if let Ok(menu) = menu {
-                let icon = tauri::image::Image::from_path("../icons/icon.png").ok();
+                // Embed icon at compile time — works on all platforms
+                let icon_bytes = include_bytes!("../icons/icon.png");
+                let icon = tauri::image::Image::from_bytes(icon_bytes).ok();
                 let mut builder = tauri::tray::TrayIconBuilder::new()
                     .tooltip("Mihoyo Widget")
                     .show_menu_on_left_click(false)
                     .on_menu_event(handle_tray_menu);
                 if let Some(img) = icon {
                     builder = builder.icon(img);
+                }
+                #[cfg(target_os = "macos")]
+                {
+                    builder = builder.icon_as_template(true);
                 }
                 let _ = builder.menu(&menu).build(app);
             }

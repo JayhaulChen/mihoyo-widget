@@ -43,9 +43,8 @@ fn env_path() -> PathBuf {
         return PathBuf::from(p);
     }
     let candidates = vec![
-        dirs::home_dir().map(|h| h.join("下载/Mihoyo-env.json")),
-        dirs::home_dir().map(|h| h.join(".config/mihoyo-widget/env.json")),
-        dirs::config_dir().map(|h| h.join("mihoyo-widget/env.json")),
+        dirs::download_dir().map(|h| h.join("Mihoyo-env.json")),
+        dirs::config_dir().map(|h| h.join("mihoyo-widget").join("env.json")),
     ];
     for c in candidates {
         if let Some(p) = c {
