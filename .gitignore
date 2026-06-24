@@ -23,8 +23,14 @@ runtime.json
 env.json
 *.env
 
+# ── Worktrees (isolated dev environments) ──
+.worktrees/
+
 # ── Superpowers local notes (not for public repository) ──
 docs/superpowers/
+
+# ── Reference materials (vendor docs, API collections) ──
+refs/
 
 # ── OS files ──
 .DS_Store
