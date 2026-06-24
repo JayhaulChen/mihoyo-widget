@@ -875,6 +875,43 @@ function updateNotifDependencies() {
   });
 }
 
+function updateSettingsSummary() {
+  // Account summary
+  const hasCookie = config && config.cookie;
+  document.getElementById('summary-account').textContent = hasCookie ? '已配置' : '未配置';
+
+  // Storage summary
+  const dataDir = config?.data_dir || '';
+  document.getElementById('summary-storage').textContent = dataDir
+    ? dataDir.length > 24
+      ? '…' + dataDir.slice(-24)
+      : dataDir
+    : '默认位置';
+  const pathEl = document.getElementById('settings-storage-path');
+  if (pathEl) pathEl.textContent = dataDir || '默认位置 (~/.config/mihoyo-widget)';
+
+  // Notifications summary
+  const notif = config?.notification || {};
+  const enabledCount = [
+    'stamina_enabled',
+    'expedition_enabled',
+    'reserve_stamina_enabled',
+    'sign_reminder_enabled',
+    'rogue_reminder_enabled',
+    'digest_enabled',
+  ].filter((k) => notif[k]).length;
+  document.getElementById('summary-notifications').textContent =
+    enabledCount > 0 ? `${enabledCount} 项开启` : '关闭';
+
+  // General summary
+  const interval = config?.poll_interval_secs || 90;
+  document.getElementById('summary-general').textContent = `轮询 ${interval}s`;
+  document.getElementById('settings-poll-interval').textContent = `${interval}s`;
+  document.getElementById('settings-notif-mode').textContent = notif.notification_mode
+    ? '静默'
+    : '弹窗';
+}
+
 // ── Startup ──
 async function loadData() {
   let cached;
@@ -1354,7 +1391,7 @@ listen('show-welcome', () => {
 });
 
 // ── Listen for login cookie capture ──
-listen('login-cookies-captured', (event) => {
+listen('login-cookies-captured', async (event) => {
   const data = event.payload;
   if (data.cookie) {
     const cookeInp = $('welcome-cookie-input');
@@ -1373,6 +1410,12 @@ listen('login-cookies-captured', (event) => {
     if (mainStoken && data.stoken) mainStoken.value = data.stoken;
     const mainUid = $('input-uid');
     if (mainUid && data.uid) mainUid.value = data.uid;
+    // Reload config and update settings summary
+    try {
+      config = await invoke('load_env_config');
+    } catch {}
+    await loadSettingsForm();
+    updateSettingsSummary();
   }
 });
 
