@@ -145,6 +145,52 @@ function setupAutoSave() {
   });
 }
 
+// ── Settings subpage actions ──
+
+// Storage picker
+$('settings-pick-dir')?.addEventListener('click', async () => {
+  try {
+    const dir = await invoke('pick_data_dir');
+    if (dir) {
+      config.data_dir = dir;
+      await invoke('set_data_dir', { dataDir: dir });
+      updateSettingsSummary();
+      saveCurrentSettings();
+    }
+  } catch (e) {
+    console.warn('Dir pick failed:', e);
+  }
+});
+
+// WebView login
+$('settings-webview-login')?.addEventListener('click', async () => {
+  try {
+    await invoke('open_login_webview');
+  } catch (e) {
+    console.warn('Login webview failed:', e);
+  }
+});
+
+// Re-launch welcome
+$('settings-show-welcome')?.addEventListener('click', () => {
+  closeSettings();
+  showWelcome();
+});
+
+// Password reveal toggles in account subpage
+document.querySelectorAll('.setting-password-toggle').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const inputId = btn.dataset.for;
+    const input = $(inputId);
+    if (!input) return;
+    const isPassword = input.type === 'password';
+    input.type = isPassword ? 'text' : 'password';
+    btn.innerHTML = isPassword
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+  });
+});
+
 function pushSubpage(pageId) {
   const current = settingsStack[settingsStack.length - 1];
   const currentEl = $(current);
