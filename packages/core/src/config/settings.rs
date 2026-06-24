@@ -16,6 +16,8 @@ pub struct Settings {
     pub uid: String,
     pub region: String,
     pub poll_interval_secs: u64,
+    #[serde(default)]
+    pub notification: NotificationConfig,
 }
 
 impl Default for Settings {
@@ -33,6 +35,43 @@ impl Default for Settings {
             uid: String::new(),
             region: String::from("prod_gf_cn"),
             poll_interval_secs: 90,
+            notification: NotificationConfig::default(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
+pub struct NotificationConfig {
+    pub notification_mode: bool,
+    pub stamina_enabled: bool,
+    pub stamina_threshold_mild: f64,
+    pub stamina_threshold_urgent: f64,
+    pub expedition_enabled: bool,
+    pub reserve_stamina_enabled: bool,
+    pub sign_reminder_enabled: bool,
+    pub sign_reminder_time: String,
+    pub rogue_reminder_enabled: bool,
+    pub rogue_reminder_time: String,
+    pub digest_enabled: bool,
+    pub digest_time: String,
+}
+
+impl Default for NotificationConfig {
+    fn default() -> Self {
+        Self {
+            notification_mode: false,
+            stamina_enabled: true,
+            stamina_threshold_mild: 0.80,
+            stamina_threshold_urgent: 0.95,
+            expedition_enabled: true,
+            reserve_stamina_enabled: true,
+            sign_reminder_enabled: true,
+            sign_reminder_time: "20:00".into(),
+            rogue_reminder_enabled: true,
+            rogue_reminder_time: "Sun 20:00".into(),
+            digest_enabled: false,
+            digest_time: "09:00".into(),
         }
     }
 }
@@ -122,6 +161,7 @@ impl Settings {
             uid: json.get("uid").or_else(|| json.get("MIHOYO_UID")).and_then(|v| v.as_str()).unwrap_or("").to_string(),
             region: json.get("region").or_else(|| json.get("MIHOYO_REGION")).and_then(|v| v.as_str()).unwrap_or("prod_gf_cn").to_string(),
             poll_interval_secs: json.get("poll_interval_secs").or_else(|| json.get("POLL_INTERVAL")).and_then(|v| v.as_u64()).unwrap_or(90),
+            notification: json.get("notification").map(|v| serde_json::from_value(v.clone()).unwrap_or_default()).unwrap_or_default(),
         }
     }
 
@@ -139,6 +179,8 @@ impl Settings {
             uid: std::env::var("MIHOYO_UID").unwrap_or_default(),
             region: std::env::var("MIHOYO_REGION").unwrap_or_else(|_| "prod_gf_cn".into()),
             poll_interval_secs: std::env::var("POLL_INTERVAL").ok().and_then(|v| v.parse().ok()).unwrap_or(90),
+            // notification 字段由 runtime.json 或默认值决定，环境变量不覆盖
+            notification: NotificationConfig::default(),
         }
     }
 
