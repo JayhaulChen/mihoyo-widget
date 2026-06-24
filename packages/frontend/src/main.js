@@ -601,6 +601,33 @@ async function loadSettingsForm() {
     $('input-stuid').value = config.stuid || '';
     $('input-mid').value = config.mid || '';
   }
+  // 通知设置
+  if (config) {
+    const notif = config.notification || {};
+    document.querySelectorAll('.notif-toggle').forEach(el => {
+      const key = el.dataset.key;
+      if (key in notif) {
+        el.checked = notif[key];
+      }
+    });
+    document.querySelectorAll('.notif-input').forEach(el => {
+      const key = el.dataset.key;
+      if (key in notif) {
+        el.value = key.startsWith('stamina_threshold')
+          ? Math.round(notif[key] * 100)
+          : notif[key];
+      }
+    });
+    updateNotifDependencies();
+  }
+}
+
+function updateNotifDependencies() {
+  document.querySelectorAll('[data-depends]').forEach(el => {
+    const depKey = el.dataset.depends;
+    const toggle = document.querySelector(`.notif-toggle[data-key="${depKey}"]`);
+    el.style.display = toggle && toggle.checked ? '' : 'none';
+  });
 }
 
 // ── Startup ──
@@ -782,6 +809,10 @@ const starFilled =
 const starEmpty =
   '<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="var(--gray-light)" stroke-width="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>';
 
+document.querySelectorAll('.notif-toggle').forEach(el => {
+  el.addEventListener('change', updateNotifDependencies);
+});
+
 // ── Event wiring ──
 document.querySelectorAll('.tab-item').forEach((el) => {
   el.addEventListener('click', () => switchTab(el.dataset.tab));
@@ -817,6 +848,20 @@ $('settings-save').addEventListener('click', async () => {
     region: config?.region || 'prod_gf_cn',
     poll_interval_secs: config?.poll_interval_secs || 90,
   };
+  // 收集通知设置
+  const notif = {};
+  document.querySelectorAll('.notif-toggle').forEach(el => {
+    notif[el.dataset.key] = el.checked;
+  });
+  document.querySelectorAll('.notif-input').forEach(el => {
+    const key = el.dataset.key;
+    let val = el.value;
+    if (key.startsWith('stamina_threshold')) {
+      val = parseInt(val) / 100 || 0;
+    }
+    notif[key] = val;
+  });
+  nc.notification = notif;
   try {
     await invoke('save_config', { newConfig: nc });
     isSettingsOpen = false;
