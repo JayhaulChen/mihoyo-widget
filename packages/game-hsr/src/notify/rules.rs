@@ -1,57 +1,139 @@
 use crate::api::widget::WidgetData;
+use chrono::{Datelike, Timelike};
+use mihoyo_core::config::settings::NotificationConfig;
 
 /// Check all notification rules and fire system notifications
 pub fn check_rules(
     data: &WidgetData,
     old: Option<&WidgetData>,
     app: &tauri::AppHandle,
+    config: &NotificationConfig,
 ) {
-    // 1. Stamina nearly full (>80%)
-    if data.max_stamina > 0 {
+    // 1. Stamina notification
+    if config.stamina_enabled && data.max_stamina > 0 {
         let pct = data.current_stamina as f64 / data.max_stamina as f64;
-        if pct >= 0.95 {
-            notify(app, "\u{4f53}\u{529b}\u{5feb}\u{6ee1}\u{4e86}", &format!("\u{5f53}\u{524d} {}/{}", data.current_stamina, data.max_stamina));
-        } else if pct >= 0.80 {
+        if pct >= config.stamina_threshold_urgent {
+            notify(app, "体力快满了", &format!("当前 {}/{}", data.current_stamina, data.max_stamina));
+        } else if pct >= config.stamina_threshold_mild {
             if let Some(old) = old {
                 let old_pct = old.current_stamina as f64 / old.max_stamina as f64;
-                if old_pct < 0.80 {
-                    notify(app, "\u{4f53}\u{529b}\u{8d85}\u{8fc7}80%", &format!("\u{5f53}\u{524d} {}/{}", data.current_stamina, data.max_stamina));
+                if old_pct < config.stamina_threshold_mild {
+                    notify(app, &format!("体力超过{}%", (config.stamina_threshold_mild * 100.0) as u32), &format!("当前 {}/{}", data.current_stamina, data.max_stamina));
                 }
             }
         }
     }
 
     // 2. Expeditions all completed
-    if data.total_expedition_num > 0 && data.accepted_expedition_num == 0 {
+    if config.expedition_enabled
+        && data.total_expedition_num > 0
+        && data.accepted_expedition_num == 0
+    {
         if let Some(old) = old {
             if old.accepted_expedition_num > 0 {
-                notify(app, "\u{6d3e}\u{9063}\u{5168}\u{90e8}\u{5b8c}\u{6210}", "\u{6240}\u{6709}\u{59d4}\u{6258}\u{5df2}\u{8fd4}\u{56de}");
+                notify(app, "派遣全部完成", "所有委托已返回");
             }
         }
     }
 
     // 3. Reserve stamina full
-    if data.is_reserve_stamina_full {
-        notify(app, "\u{5907}\u{7528}\u{4f53}\u{529b}\u{5df2}\u{6ee1}", "\u{8bf7}\u{53ca}\u{65f6}\u{4f7f}\u{7528}");
+    if config.reserve_stamina_enabled && data.is_reserve_stamina_full {
+        notify(app, "备用体力已满", "请及时使用");
     }
 
-    // 4. Daily not signed in
-    if !data.has_signed {
-        if let Some(old) = old {
-            if old.has_signed {
-                notify(app, "\u{4eca}\u{65e5}\u{672a}\u{7b7e}\u{5230}", "\u{661f}\u{7a79}\u{94c1}\u{9053}\u{4eca}\u{65e5}\u{8fd8}\u{672a}\u{7b7e}\u{5230}");
+    // 4. Sign reminder — only fire after configured time
+    if config.sign_reminder_enabled && !data.has_signed {
+        if is_time_reached(&config.sign_reminder_time) {
+            if let Some(old) = old {
+                if old.has_signed {
+                    notify(app, "今日未签到", "星穹铁道今日还未签到");
+                }
             }
         }
     }
 
-    // 5. Simulated universe not done this week
-    if data.max_rogue_score > 0 && data.current_rogue_score == 0 {
-        if let Some(old) = old {
-            if old.current_rogue_score > 0 {
-                notify(app, "\u{6a21}\u{62df}\u{5b87}\u{5b99}\u{672a}\u{6253}", "\u{672c}\u{5468}\u{6a21}\u{62df}\u{5b87}\u{5b99}\u{79ef}\u{5206}\u{8fd8}\u{672a}\u{83b7}\u{53d6}");
+    // 5. Simulated universe not done this week — only fire after configured time
+    if config.rogue_reminder_enabled
+        && data.max_rogue_score > 0
+        && data.current_rogue_score == 0
+    {
+        if is_time_reached(&config.rogue_reminder_time) {
+            if let Some(old) = old {
+                if old.current_rogue_score > 0 {
+                    notify(app, "模拟宇宙未打", "本周模拟宇宙积分还未获取");
+                }
             }
         }
     }
+}
+
+/// Check if current time has reached the given time specification.
+///
+/// Formats:
+///   "20:00"       — daily, true if HH:MM has passed today
+///   "Sun 20:00"   — weekly, true if today matches weekday and HH:MM has passed
+fn is_time_reached(time_str: &str) -> bool {
+    let now = chrono::Local::now();
+    let parts: Vec<&str> = time_str.trim().split_whitespace().collect();
+
+    let (hour, minute) = match parts.len() {
+        1 => {
+            // "HH:MM" format
+            let t = parts[0];
+            let hm: Vec<&str> = t.split(':').collect();
+            if hm.len() != 2 {
+                return false;
+            }
+            (hm[0].parse::<u32>().unwrap_or(99), hm[1].parse::<u32>().unwrap_or(99))
+        }
+        2 => {
+            // "EEE HH:MM" format — check weekday first
+            let weekday = parts[0];
+            let t = parts[1];
+            let hm: Vec<&str> = t.split(':').collect();
+            if hm.len() != 2 {
+                return false;
+            }
+            let weekday_now = now.format("%a").to_string();
+            if !weekday_now.eq_ignore_ascii_case(weekday) {
+                return false;
+            }
+            (hm[0].parse::<u32>().unwrap_or(99), hm[1].parse::<u32>().unwrap_or(99))
+        }
+        _ => return false,
+    };
+
+    let current_minutes = now.hour() * 60 + now.minute();
+    let target_minutes = hour * 60 + minute;
+    current_minutes >= target_minutes
+}
+
+/// Daily summary digest. Call on each poller tick; internally deduplicates per day.
+pub fn check_digest(data: &WidgetData, app: &tauri::AppHandle, config: &NotificationConfig) {
+    if !config.digest_enabled || !is_time_reached(&config.digest_time) {
+        return;
+    }
+
+    use std::sync::OnceLock;
+    static LAST_DIGEST_DAY: OnceLock<std::sync::Mutex<u32>> = OnceLock::new();
+    let today = chrono::Local::now().ordinal(); // day of year
+    let lock = LAST_DIGEST_DAY.get_or_init(|| std::sync::Mutex::new(0));
+    let mut last = lock.lock().unwrap();
+    if *last == today {
+        return; // already sent today
+    }
+    *last = today;
+
+    let stamina_line = format!("体力 {}/{}", data.current_stamina, data.max_stamina);
+    let expedition_line = if data.total_expedition_num > 0 {
+        format!("| 派遣 {}/{}", data.accepted_expedition_num, data.total_expedition_num)
+    } else {
+        String::new()
+    };
+    let sign_line = if data.has_signed { "| 已签到" } else { "| 未签到" };
+
+    let body = format!("{} {} {}", stamina_line, expedition_line, sign_line);
+    notify(app, "Mihoyo Widget 每日摘要", &body);
 }
 
 fn notify(app: &tauri::AppHandle, title: &str, body: &str) {
