@@ -80,7 +80,7 @@ function renderTab() {
 
 // ── Settings drill-down navigation ──
 let _saveTimeout = null;
-function saveCurrentSettings() {
+async function saveCurrentSettings() {
   if (_saveTimeout) {
     clearTimeout(_saveTimeout);
     _saveTimeout = null;
@@ -100,7 +100,7 @@ function saveCurrentSettings() {
     seed_time: config?.seed_time || '',
     region: config?.region || 'prod_gf_cn',
     poll_interval_secs: config?.poll_interval_secs || 90,
-    data_dir: $('input-data-dir')?.value.trim() || config?.data_dir || '',
+    data_dir: config?.data_dir || '',
   };
   // Collect notification settings
   const notif = {};
@@ -125,14 +125,18 @@ function saveCurrentSettings() {
     notif.notification_mode = config.notification.notification_mode;
   }
   nc.notification = notif;
-  invoke('save_config', { newConfig: nc }).catch((e) => {
+  try {
+    await invoke('save_config', { newConfig: nc });
+    config = nc;
+  } catch (e) {
     console.error('保存失败:', e);
-  });
-  config = nc;
+  }
 }
 
 // Debounced auto-save on input blur
 function setupAutoSave() {
+  if (window._autoSaveSetup) return;
+  window._autoSaveSetup = true;
   document.querySelectorAll('#settings-view input, #settings-view select').forEach((el) => {
     el.addEventListener('change', () => {
       if (_saveTimeout) clearTimeout(_saveTimeout);
@@ -223,7 +227,7 @@ function popSubpage() {
   const targetEl = $(target);
   // Animate out current (right), in target (from left)
   leavingEl.classList.remove('active');
-  leavingEl.classList.add('exit-left');
+  leavingEl.classList.add('exit-right');
   targetEl.style.transform = 'translateX(-30px)';
   targetEl.style.opacity = '0';
   targetEl.classList.add('active');
@@ -232,7 +236,7 @@ function popSubpage() {
   targetEl.style.opacity = '';
   renderSettingsNav();
   setTimeout(() => {
-    leavingEl.classList.remove('exit-left');
+    leavingEl.classList.remove('exit-right');
   }, 300);
 }
 
@@ -240,7 +244,7 @@ function closeSettings() {
   settingsStack = ['settings-root'];
   // Reset all pages to clean state
   document.querySelectorAll('.settings-page').forEach((el) => {
-    el.classList.remove('active', 'exit-left', 'enter-right');
+    el.classList.remove('active', 'exit-left', 'exit-right', 'enter-right');
     el.style.transform = '';
     el.style.opacity = '';
   });
@@ -288,6 +292,7 @@ document.getElementById('settings-pages')?.addEventListener('click', (e) => {
 });
 
 $('settings-back')?.addEventListener('click', popSubpage);
+$('settings-done')?.addEventListener('click', closeSettings);
 
 // Close on Escape
 document.addEventListener('keydown', (e) => {
@@ -831,7 +836,6 @@ async function loadSettingsForm() {
     $('input-uid').value = config.uid || '';
     $('input-stuid').value = config.stuid || '';
     $('input-mid').value = config.mid || '';
-    $('input-data-dir').value = config.data_dir || '';
   }
   // 通知设置
   if (config) {

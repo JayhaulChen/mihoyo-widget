@@ -1040,6 +1040,10 @@ input[type='time']::-webkit-calendar-picker-indicator {
   opacity: 0;
   transform: translateX(-30px);
 }
+.settings-page.exit-right {
+  opacity: 0;
+  transform: translateX(30px);
+}
 .settings-page.enter-right {
   opacity: 0;
   transform: translateX(30px);
