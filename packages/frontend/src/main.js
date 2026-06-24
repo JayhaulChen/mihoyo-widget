@@ -79,8 +79,70 @@ function renderTab() {
 }
 
 // ── Settings drill-down navigation ──
+let _saveTimeout = null;
 function saveCurrentSettings() {
-  // Stub — will be implemented in Task 4
+  if (_saveTimeout) {
+    clearTimeout(_saveTimeout);
+    _saveTimeout = null;
+  }
+  const cookie = $('input-cookie')?.value.trim() || config?.cookie || '';
+  const uid = $('input-uid')?.value.trim() || config?.uid || '';
+  if (!cookie) return; // Not yet configured, skip save
+  const nc = {
+    cookie,
+    stoken: $('input-stoken')?.value || config?.stoken || '',
+    uid,
+    stuid: $('input-stuid')?.value || config?.stuid || '',
+    mid: $('input-mid')?.value || config?.mid || '',
+    device_id: config?.device_id || '',
+    device_fp: config?.device_fp || '',
+    seed_id: config?.seed_id || '',
+    seed_time: config?.seed_time || '',
+    region: config?.region || 'prod_gf_cn',
+    poll_interval_secs: config?.poll_interval_secs || 90,
+    data_dir: config?.data_dir || '',
+  };
+  // Collect notification settings
+  const notif = {};
+  document.querySelectorAll('.notif-toggle').forEach((el) => {
+    notif[el.dataset.key] = el.checked;
+  });
+  document.querySelectorAll('.notif-input').forEach((el) => {
+    const key = el.dataset.key;
+    if (key === 'rogue_reminder_day') return;
+    let val = el.value;
+    if (key.startsWith('stamina_threshold')) {
+      val = parseInt(val) / 100 || 0;
+    }
+    notif[key] = val;
+  });
+  const rogueDay = document.querySelector('.notif-input[data-key="rogue_reminder_day"]');
+  const rogueTime = document.querySelector('.notif-input[data-key="rogue_reminder_time"]');
+  if (rogueDay && rogueTime) {
+    notif.rogue_reminder_time = `${rogueDay.value} ${rogueTime.value}`;
+  }
+  if (config?.notification?.notification_mode != null) {
+    notif.notification_mode = config.notification.notification_mode;
+  }
+  nc.notification = notif;
+  invoke('save_config', { newConfig: nc }).catch((e) => {
+    console.error('保存失败:', e);
+  });
+  config = nc;
+}
+
+// Debounced auto-save on input blur
+function setupAutoSave() {
+  document.querySelectorAll('#settings-view input, #settings-view select').forEach((el) => {
+    el.addEventListener('change', () => {
+      if (_saveTimeout) clearTimeout(_saveTimeout);
+      _saveTimeout = setTimeout(saveCurrentSettings, 200);
+    });
+    el.addEventListener('blur', () => {
+      if (_saveTimeout) clearTimeout(_saveTimeout);
+      _saveTimeout = setTimeout(saveCurrentSettings, 300);
+    });
+  });
 }
 
 function pushSubpage(pageId) {
@@ -755,6 +817,8 @@ async function loadSettingsForm() {
     });
     updateNotifDependencies();
   }
+  setupAutoSave();
+  if (typeof updateSettingsSummary === 'function') updateSettingsSummary();
 }
 
 function updateNotifDependencies() {
@@ -965,93 +1029,6 @@ $('settings-btn').addEventListener('click', () => {
     renderSettingsNav();
   }
   switchTab('settings');
-});
-document.addEventListener('contextmenu', (e) => {
-  e.preventDefault();
-  switchTab('settings');
-});
-
-$('settings-save').addEventListener('click', async () => {
-  const cookie = $('input-cookie').value.trim();
-  const uid = $('input-uid').value.trim();
-  if (!cookie) {
-    alert('Cookie 不能为空');
-    return;
-  }
-  if (uid && !/^\d+$/.test(uid)) {
-    alert('UID 格式不正确（应为纯数字）');
-    return;
-  }
-  const nc = {
-    cookie,
-    stoken: $('input-stoken').value,
-    uid,
-    stuid: $('input-stuid').value,
-    mid: $('input-mid').value,
-    device_id: config?.device_id || '',
-    device_fp: config?.device_fp || '',
-    seed_id: config?.seed_id || '',
-    seed_time: config?.seed_time || '',
-    region: config?.region || 'prod_gf_cn',
-    poll_interval_secs: config?.poll_interval_secs || 90,
-    data_dir: $('input-data-dir').value.trim() || '',
-  };
-  // 收集通知设置
-  const notif = {};
-  document.querySelectorAll('.notif-toggle').forEach((el) => {
-    notif[el.dataset.key] = el.checked;
-  });
-  document.querySelectorAll('.notif-input').forEach((el) => {
-    const key = el.dataset.key;
-    if (key === 'rogue_reminder_day') return; // merged into rogue_reminder_time
-    let val = el.value;
-    if (key.startsWith('stamina_threshold')) {
-      val = parseInt(val) / 100 || 0;
-    }
-    notif[key] = val;
-  });
-  // 合并星期选择器 + 时间选择器 → "EEE HH:MM"
-  const rogueDay = document.querySelector('.notif-input[data-key="rogue_reminder_day"]');
-  const rogueTime = document.querySelector('.notif-input[data-key="rogue_reminder_time"]');
-  if (rogueDay && rogueTime) {
-    notif.rogue_reminder_time = `${rogueDay.value} ${rogueTime.value}`;
-  }
-  nc.notification = notif;
-  // 保留从设置页面无法修改的字段
-  if (config?.notification?.notification_mode != null) {
-    nc.notification.notification_mode = config.notification.notification_mode;
-  }
-  try {
-    await invoke('save_config', { newConfig: nc });
-    isSettingsOpen = false;
-    currentTab = previousTab;
-    updateTabBar();
-    renderTab();
-    config = nc;
-    await doRefresh();
-  } catch (e) {
-    console.error('保存失败:', e);
-    alert('保存失败: ' + e);
-  }
-});
-
-$('settings-close').addEventListener('click', () => {
-  isSettingsOpen = false;
-  currentTab = previousTab;
-  updateTabBar();
-  renderTab();
-});
-
-// Data dir picker in settings
-$('settings-pick-dir')?.addEventListener('click', async () => {
-  try {
-    const dir = await invoke('pick_data_dir');
-    if (dir) {
-      $('input-data-dir').value = dir;
-    }
-  } catch (e) {
-    console.warn('Dir pick failed:', e);
-  }
 });
 
 $('refresh-btn').addEventListener('click', doRefresh);
