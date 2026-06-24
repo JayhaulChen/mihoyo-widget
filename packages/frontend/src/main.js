@@ -608,6 +608,7 @@ async function loadSettingsForm() {
     $('input-uid').value = config.uid || '';
     $('input-stuid').value = config.stuid || '';
     $('input-mid').value = config.mid || '';
+    $('input-data-dir').value = config.data_dir || '';
   }
   // 通知设置
   if (config) {
@@ -866,6 +867,7 @@ $('settings-save').addEventListener('click', async () => {
     seed_time: config?.seed_time || '',
     region: config?.region || 'prod_gf_cn',
     poll_interval_secs: config?.poll_interval_secs || 90,
+    data_dir: $('input-data-dir').value.trim() || '',
   };
   // 收集通知设置
   const notif = {};
@@ -911,6 +913,18 @@ $('settings-close').addEventListener('click', () => {
   currentTab = previousTab;
   updateTabBar();
   renderTab();
+});
+
+// Data dir picker in settings
+$('settings-pick-dir')?.addEventListener('click', async () => {
+  try {
+    const dir = await invoke('pick_data_dir');
+    if (dir) {
+      $('input-data-dir').value = dir;
+    }
+  } catch (e) {
+    console.warn('Dir pick failed:', e);
+  }
 });
 
 $('refresh-btn').addEventListener('click', doRefresh);

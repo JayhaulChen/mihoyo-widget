@@ -421,37 +421,21 @@ pub fn run() {
             _on_captured_cookies,
         ])
         .setup(|app| {
-            // Build system tray with menu
-            #[allow(unused)]
-            let menu = {
-                let m = tauri::menu::MenuBuilder::new(app)
-                    .item(&tauri::menu::MenuItemBuilder::with_id("show", "显示/隐藏")
-                        .accelerator("CmdOrCtrl+Shift+H").build(app).unwrap())
-                    .item(&tauri::menu::MenuItemBuilder::with_id("refresh", "刷新数据")
-                        .build(app).unwrap())
-                    .separator()
-                    .item(&tauri::menu::MenuItemBuilder::with_id("quit", "退出")
-                        .accelerator("CmdOrCtrl+Q").build(app).unwrap())
-                    .build();
-                m
-            };
-            if let Ok(menu) = menu {
-                // Embed icon at compile time — works on all platforms
-                let icon_bytes = include_bytes!("../icons/icon.png");
-                let icon = tauri::image::Image::from_bytes(icon_bytes).ok();
-                let mut builder = tauri::tray::TrayIconBuilder::with_id("main")
-                    .tooltip("Mihoyo Widget")
-                    .show_menu_on_left_click(false)
-                    .on_menu_event(handle_tray_menu);
-                if let Some(img) = icon {
-                    builder = builder.icon(img);
-                }
-                #[cfg(target_os = "macos")]
-                {
-                    builder = builder.icon_as_template(true);
-                }
-                let _ = builder.menu(&menu).build(app);
+            // Build system tray — menu set by rebuild_tray_menu after config loads
+            let icon_bytes = include_bytes!("../icons/icon.png");
+            let icon = tauri::image::Image::from_bytes(icon_bytes).ok();
+            let mut builder = tauri::tray::TrayIconBuilder::with_id("main")
+                .tooltip("Mihoyo Widget")
+                .show_menu_on_left_click(false)
+                .on_menu_event(handle_tray_menu);
+            if let Some(img) = icon {
+                builder = builder.icon(img);
             }
+            #[cfg(target_os = "macos")]
+            {
+                builder = builder.icon_as_template(true);
+            }
+            let _ = builder.build(app);
 
             // Get notification_mode and rebuild tray menu accordingly
             let notif_mode = {
