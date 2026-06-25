@@ -749,10 +749,17 @@ function drawRing(current, max) {
   ctx.clearRect(0, 0, w, h);
   const cx = w / 2,
     cy = h / 2,
-    r = 32,
-    lw = 4;
+    r = Math.round(w * 0.4),
+    lw = Math.max(Math.round(w * 0.05), 3);
 
-  const g = ctx.createRadialGradient(cx, cy, r - 6, cx, cy, r + 12);
+  const g = ctx.createRadialGradient(
+    cx,
+    cy,
+    r - Math.round(w * 0.075),
+    cx,
+    cy,
+    r + Math.round(w * 0.125),
+  );
   g.addColorStop(0, 'rgba(10, 132, 255, 0.03)');
   g.addColorStop(1, 'transparent');
   ctx.beginPath();

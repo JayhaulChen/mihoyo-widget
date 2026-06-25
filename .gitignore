@@ -27,7 +27,8 @@ env.json
 .worktrees/
 
 # ── Superpowers local notes (not for public repository) ──
-docs/superpowers/
+# 设计文档在 docs/specs/（已统一），本地缓存的 skill 不提交
+.claude/plugins/
 
 # ── Reference materials (vendor docs, API collections) ──
 refs/
