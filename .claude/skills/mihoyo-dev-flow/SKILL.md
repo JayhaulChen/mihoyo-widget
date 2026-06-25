@@ -12,7 +12,7 @@ disable-model-invocation: false
 **前置检查**（每次进入工作流时执行）：
 1. 读 CONTEXT.md 和已有 ADR 了解当前架构上下文
 2. 调 `codebase-memory get_architecture` 看当前项目全景
-3. 检查 `.workflow-retro-feedback.md` 看看有无未解决的已知问题
+3. 读 memory 目录（`/home/jayhaul/.claude/projects/-media-jayhaul-dev-Code-mihoyo-widget/memory/`）了解已有教训和偏好
 
 ---
 
