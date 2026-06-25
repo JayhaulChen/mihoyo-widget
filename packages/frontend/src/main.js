@@ -176,7 +176,7 @@ $('settings-pick-dir')?.addEventListener('click', async () => {
 // WebView login — open window, then show capture/close actions
 $('settings-webview-login')?.addEventListener('click', async () => {
   try {
-    await invoke('open_login_webview');
+    const result = await invoke('open_login_webview');
     $('settings-webview-login')?.classList.add('hidden');
     $('settings-capture-cookies')?.classList.remove('hidden');
     $('settings-close-login')?.classList.remove('hidden');
@@ -211,6 +211,13 @@ $('settings-close-login')?.addEventListener('click', async () => {
 $('settings-show-welcome')?.addEventListener('click', () => {
   closeSettings();
   showWelcome();
+});
+
+// Reset login state when window is closed externally
+listen('login-window-closed', () => {
+  $('settings-capture-cookies')?.classList.add('hidden');
+  $('settings-close-login')?.classList.add('hidden');
+  $('settings-webview-login')?.classList.remove('hidden');
 });
 
 // Password reveal toggles in account subpage

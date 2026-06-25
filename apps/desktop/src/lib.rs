@@ -191,10 +191,46 @@ async fn pick_data_dir(app: AppHandle) -> Result<String, String> {
     }
 }
 
+const LOGIN_INJECT_JS: &str = r#"
+(function(){
+    var id = '__mhy_toolbar';
+    var old = document.getElementById(id);
+    if (old) old.remove();
+
+    var tb = document.createElement('div');
+    tb.id = id;
+    tb.style.cssText = 'position:fixed;top:8px;left:50%;transform:translateX(-50%);z-index:999999;display:flex;gap:8px;padding:6px 16px;background:rgba(0,0,0,0.65);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-radius:22px;color:#fff;font-size:13px;font-family:-apple-system,sans-serif;box-shadow:0 2px 12px rgba(0,0,0,0.3);white-space:nowrap;';
+
+    var closeBtn = document.createElement('span');
+    closeBtn.textContent = '✕ 关闭窗口';
+    closeBtn.style.cssText = 'padding:4px 14px;cursor:pointer;opacity:0.85;';
+    closeBtn.onclick = function(){ try{ window.__TAURI_INTERNALS__.invoke('close_login_window'); }catch(e){} };
+
+    var capBtn = document.createElement('span');
+    capBtn.textContent = '✓ 获取Cookie';
+    capBtn.style.cssText = 'padding:4px 14px;cursor:pointer;font-weight:600;background:rgba(255,255,255,0.15);border-radius:16px;';
+    capBtn.onclick = function(){ try{ window.__TAURI_INTERNALS__.invoke('capture_login_cookies'); }catch(e){} };
+
+    tb.appendChild(closeBtn);
+    tb.appendChild(capBtn);
+    document.body.appendChild(tb);
+
+    document.addEventListener('keydown', function __mhy_esc(e){
+        if(e.key === 'Escape') try{ window.__TAURI_INTERNALS__.invoke('close_login_window'); }catch(e){}
+    });
+})();
+"#;
+
 #[tauri::command]
 async fn open_login_webview(app: AppHandle) -> Result<String, String> {
     use std::str::FromStr;
     let url = tauri::Url::from_str("https://user.mihoyo.com/").map_err(|e| e.to_string())?;
+
+    if let Some(w) = app.get_webview_window("login-window") {
+        let _ = w.set_focus();
+        return Ok("already_open".into());
+    }
+
     let _ = tauri::WebviewWindowBuilder::new(
         &app,
         "login-window",
@@ -205,12 +241,17 @@ async fn open_login_webview(app: AppHandle) -> Result<String, String> {
     .center()
     .decorations(false)
     .resizable(false)
+    .on_page_load(move |_webview_window, payload| {
+        if matches!(payload.event(), tauri::webview::PageLoadEvent::Finished) {
+            if let Err(e) = _webview_window.eval(LOGIN_INJECT_JS) {
+                log::warn!("login toolbar inject failed: {}", e);
+            }
+        }
+    })
     .build()
     .map_err(|e| e.to_string())?;
 
     if let Some(w) = app.get_webview_window("login-window") {
-        // inject Escape-to-close listener
-        let _ = w.eval(r#"(function(){function init(){document.addEventListener('keydown',function(e){if(e.key==='Escape'){window.__TAURI_INTERNALS__.invoke('close_login_window')}})}if(document.body)init();else document.addEventListener('DOMContentLoaded',init)})()"#);
         let _ = w.set_focus();
     }
 
@@ -221,6 +262,7 @@ async fn open_login_webview(app: AppHandle) -> Result<String, String> {
 async fn close_login_window(app: AppHandle) -> Result<String, String> {
     if let Some(w) = app.get_webview_window("login-window") {
         let _ = w.close();
+        let _ = app.emit("login-window-closed", ());
         Ok("closed".into())
     } else {
         Err("Login window not found".into())
@@ -272,6 +314,7 @@ async fn capture_login_cookies(app: AppHandle) -> Result<String, String> {
     // Close the login window — the captured data will arrive via
     // the _on_captured_cookies command handler.
     let _ = webview.close();
+    let _ = app.emit("login-window-closed", ());
 
     Ok("capturing".into())
 }
