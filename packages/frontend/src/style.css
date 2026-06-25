@@ -1386,6 +1386,69 @@ input[type='time']::-webkit-calendar-picker-indicator {
   flex: none;
 }
 
+/* ── Slider rows (stamina thresholds) ── */
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+.slider-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+  min-width: 28px;
+}
+.slider-value {
+  font-size: 11px;
+  color: var(--text);
+  font-weight: 600;
+  font-family: 'SF Mono', 'Cascadia Code', 'JetBrains Mono', monospace;
+  min-width: 32px;
+  text-align: right;
+}
+.notif-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--gray-light);
+  outline: none;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.notif-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  border: 0.5px solid var(--gray-light);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition:
+    transform 0.12s,
+    box-shadow 0.12s;
+}
+.notif-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
+}
+.notif-slider::-webkit-slider-thumb:active {
+  transform: scale(1.15);
+}
+.notif-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  border: 0.5px solid var(--gray-light);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+}
+
 /* ── Login action rows hidden state ── */
 #settings-login-group .setting-action-row.hidden {
   display: none;

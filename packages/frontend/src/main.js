@@ -107,7 +107,7 @@ async function saveCurrentSettings() {
   document.querySelectorAll('.notif-toggle').forEach((el) => {
     notif[el.dataset.key] = el.checked;
   });
-  document.querySelectorAll('.notif-input').forEach((el) => {
+  document.querySelectorAll('.notif-input, .notif-slider').forEach((el) => {
     const key = el.dataset.key;
     if (key === 'rogue_reminder_day') return;
     let val = el.value;
@@ -137,6 +137,13 @@ async function saveCurrentSettings() {
 function setupAutoSave() {
   if (window._autoSaveSetup) return;
   window._autoSaveSetup = true;
+  // Slider live value display
+  document.querySelectorAll('.notif-slider').forEach((el) => {
+    el.addEventListener('input', () => {
+      const label = el.parentElement.querySelector('.slider-value');
+      if (label) label.textContent = el.value + '%';
+    });
+  });
   document.querySelectorAll('#settings-view input, #settings-view select').forEach((el) => {
     el.addEventListener('change', () => {
       if (_saveTimeout) clearTimeout(_saveTimeout);
@@ -883,11 +890,19 @@ async function loadSettingsForm() {
             if (daySel) daySel.value = parts[0];
             timeInp.value = parts[1];
           }
-        } else if (key.startsWith('stamina_threshold')) {
-          el.value = Math.round(notif[key] * 100);
-        } else {
+        } else if (!key.startsWith('stamina_threshold')) {
           el.value = notif[key];
         }
+      }
+    });
+    // Load slider values for stamina thresholds
+    document.querySelectorAll('.notif-slider').forEach((el) => {
+      const key = el.dataset.key;
+      if (key && key in notif) {
+        const pct = Math.round(notif[key] * 100);
+        el.value = pct;
+        const label = el.parentElement.querySelector('.slider-value');
+        if (label) label.textContent = pct + '%';
       }
     });
     updateNotifDependencies();
