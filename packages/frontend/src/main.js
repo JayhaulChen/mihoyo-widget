@@ -147,6 +147,17 @@ const SHORTCUT_LABELS = {
 function renderShortcuts() {
   const list = $('shortcuts-list');
   if (!list || !config?.shortcuts?.bindings) return;
+
+  // Check session type — Wayland doesn't support global shortcuts
+  invoke('get_session_type').then((t) => {
+    if (t === 'wayland') {
+      const banner = document.createElement('div');
+      banner.className = 'shortcut-wayland-warn';
+      banner.innerHTML = '<span>⚠</span><span>当前桌面环境 Wayland 不支持全局快捷键。切到 X11 可使用。</span>';
+      list.parentElement.insertBefore(banner, list);
+    }
+  }).catch(() => {});
+
   const bindings = config.shortcuts.bindings;
   list.innerHTML = '';
   for (const [action, accelerator] of Object.entries(bindings)) {

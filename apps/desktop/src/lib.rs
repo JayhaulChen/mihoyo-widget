@@ -403,11 +403,10 @@ fn register_shortcut_binding(
     accelerator: &str,
 ) -> Result<(), tauri_plugin_global_shortcut::Error> {
     use tauri_plugin_global_shortcut::GlobalShortcutExt;
-    let action = action.to_string();
+    let a = action.to_string();
     app.global_shortcut().on_shortcut(accelerator, move |h, _, _| {
-        run_shortcut_action(h, &action);
-    })?;
-    Ok(())
+        run_shortcut_action(h, &a);
+    })
 }
 
 // ── Global Shortcut commands ──
@@ -453,6 +452,11 @@ async fn is_autostart_enabled(app: AppHandle) -> Result<bool, String> {
     use tauri_plugin_autostart::ManagerExt;
     let manager = app.autolaunch();
     manager.is_enabled().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_session_type() -> String {
+    std::env::var("XDG_SESSION_TYPE").unwrap_or_default()
 }
 
 #[tauri::command]
@@ -619,6 +623,7 @@ pub fn run() {
             register_shortcuts,
             is_autostart_enabled,
             toggle_autostart,
+            get_session_type,
         ])
         .setup(|app| {
             // Build system tray — menu set by rebuild_tray_menu after config loads

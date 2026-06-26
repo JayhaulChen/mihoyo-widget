@@ -1269,6 +1269,19 @@ input[type='time']::-webkit-calendar-picker-indicator {
 .shortcut-conflict.hidden {
   display: none;
 }
+.shortcut-wayland-warn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  margin: 4px 0;
+  background: color-mix(in srgb, var(--orange) 12%, transparent);
+  border-radius: 10px;
+  font-size: 11px;
+  color: var(--orange);
+  font-weight: 500;
+  line-height: 1.4;
+}
 
 /* -- Storage subpage specific -- */
 .setting-storage-path {
