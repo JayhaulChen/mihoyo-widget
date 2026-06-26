@@ -1,0 +1,10 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "--- Pre-push checks ---"
+
+echo "[cargo clippy]"
+cargo clippy 2>&1 || exit 1
+
+echo "[npm run build]"
+cd packages/frontend && npm run build 2>&1 || exit 1
