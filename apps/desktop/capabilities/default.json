@@ -21,6 +21,14 @@
     "core:window:allow-create",
     "core:window:allow-close",
     "core:window:allow-set-size",
-    "core:window:allow-center"
+    "core:window:allow-center",
+    "global-shortcut:default",
+    "global-shortcut:allow-register",
+    "global-shortcut:allow-unregister",
+    "global-shortcut:allow-is-registered",
+    "autostart:default",
+    "autostart:allow-enable",
+    "autostart:allow-disable",
+    "autostart:allow-is-enabled"
   ]
 }

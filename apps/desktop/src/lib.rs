@@ -6,8 +6,9 @@ use game_hsr::api::{RogueArchive, PlayerInfo, WidgetData};
 use game_hsr::api::cache::{AllCachedData, HsrCache};
 use game_hsr::notify::{check_rules, check_digest};
 use mihoyo_core::cache::CacheDb;
-use mihoyo_core::config::Settings;
+use mihoyo_core::config::settings::{Settings, ShortcutConfig};
 use tauri::{AppHandle, Emitter, Manager, State};
+use tauri_plugin_global_shortcut::GlobalShortcutExt;
 use tokio::sync::Mutex;
 
 const POLL_INTERVAL_SECS: u64 = 90;
@@ -375,6 +376,59 @@ fn _on_captured_cookies(app: AppHandle, cookie: String, stoken: String, stuid: S
     }));
 }
 
+// ── Global Shortcut commands ──
+
+#[tauri::command]
+async fn register_shortcuts(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    config: ShortcutConfig,
+) -> Result<Vec<String>, String> {
+    use tauri_plugin_global_shortcut::GlobalShortcutExt;
+
+    // Unregister all currently registered shortcuts
+    app.global_shortcut().unregister_all().ok();
+
+    // Register each binding
+    let mut conflicts: Vec<String> = Vec::new();
+    for (action, accelerator) in &config.bindings {
+        if accelerator.is_empty() {
+            continue;
+        }
+        if let Err(e) = app.global_shortcut().register(accelerator.as_str()) {
+            log::warn!("Shortcut '{}' ({}) registration failed: {}", action, accelerator, e);
+            conflicts.push(format!("{}: {}", action, e));
+        }
+    }
+
+    // Save config
+    {
+        let mut guard = state.config_data.lock().await;
+        guard.shortcuts = config;
+        let _ = guard.save_to_runtime();
+    }
+
+    Ok(conflicts)
+}
+
+#[tauri::command]
+async fn is_autostart_enabled(app: AppHandle) -> Result<bool, String> {
+    use tauri_plugin_autostart::ManagerExt;
+    let manager = app.autolaunch();
+    manager.is_enabled().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn toggle_autostart(app: AppHandle, enabled: bool) -> Result<(), String> {
+    use tauri_plugin_autostart::ManagerExt;
+    let manager = app.autolaunch();
+    if enabled {
+        manager.enable().map_err(|e| e.to_string())
+    } else {
+        manager.disable().map_err(|e| e.to_string())
+    }
+}
+
 fn rebuild_tray_menu(app: &tauri::AppHandle, notif_mode: bool) {
     let menu = {
         let m = tauri::menu::MenuBuilder::new(app)
@@ -499,6 +553,44 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().with_handler(|app: &tauri::AppHandle, shortcut: &tauri_plugin_global_shortcut::Shortcut, event: tauri_plugin_global_shortcut::ShortcutEvent| {
+            if event.state() != tauri_plugin_global_shortcut::ShortcutState::Pressed {
+                return;
+            }
+            let accelerator = shortcut.to_string();
+            let action = {
+                let state = app.state::<AppState>();
+                let guard = state.config_data.blocking_lock();
+                guard.shortcuts.bindings.iter()
+                    .find(|(_, v)| *v == &accelerator)
+                    .map(|(k, _)| k.clone())
+            };
+            if let Some(action) = action {
+                match action.as_str() {
+                    "toggle_window" => {
+                        if let Some(w) = app.get_webview_window("main") {
+                            if w.is_visible().unwrap_or(false) {
+                                let _ = w.hide();
+                            } else {
+                                let _ = w.show();
+                                let _ = w.set_focus();
+                            }
+                        }
+                    }
+                    "refresh" => {
+                        let _ = app.emit("manual-refresh", ());
+                    }
+                    "quit" => {
+                        app.exit(0);
+                    }
+                    _ => {}
+                }
+            }
+        }).build())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec![]),
+        ))
         .manage(AppState {
             config_data: Mutex::new(settings.clone()),
             cache_data: Mutex::new(cache),
@@ -520,6 +612,9 @@ pub fn run() {
             close_login_window,
             capture_login_cookies,
             _on_captured_cookies,
+            register_shortcuts,
+            is_autostart_enabled,
+            toggle_autostart,
         ])
         .setup(|app| {
             // Build system tray — menu set by rebuild_tray_menu after config loads
@@ -528,7 +623,27 @@ pub fn run() {
             let mut builder = tauri::tray::TrayIconBuilder::with_id("main")
                 .tooltip("Mihoyo Widget")
                 .show_menu_on_left_click(false)
-                .on_menu_event(handle_tray_menu);
+                .on_menu_event(handle_tray_menu)
+                .on_tray_icon_event(|tray, event| {
+                    if let tauri::tray::TrayIconEvent::Click { .. } = event {
+                        let app = tray.app_handle();
+                        let state = app.state::<AppState>();
+                        let config = state.config_data.blocking_lock();
+                        if !config.system.left_click_toggle {
+                            return;
+                        }
+                        drop(config);
+                        drop(state);
+                        if let Some(w) = app.get_webview_window("main") {
+                            if w.is_visible().unwrap_or(false) {
+                                let _ = w.hide();
+                            } else {
+                                let _ = w.show();
+                                let _ = w.set_focus();
+                            }
+                        }
+                    }
+                });
             if let Some(img) = icon {
                 builder = builder.icon(img);
             }
@@ -548,6 +663,23 @@ pub fn run() {
             };
 
             rebuild_tray_menu(app.handle(), notif_mode);
+
+            // Register global shortcuts from saved config
+            {
+                let state = app.state::<AppState>();
+                let guard = state.config_data.blocking_lock();
+                let bindings = guard.shortcuts.bindings.clone();
+                drop(guard);
+                drop(state);
+                for (action, accelerator) in &bindings {
+                    if accelerator.is_empty() {
+                        continue;
+                    }
+                    if let Err(e) = app.global_shortcut().register(accelerator.as_str()) {
+                        log::warn!("Shortcut '{}' ({}) registration failed: {}", action, accelerator, e);
+                    }
+                }
+            }
 
             // Hide window on startup if notification mode is active
             if notif_mode {

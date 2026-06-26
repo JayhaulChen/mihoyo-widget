@@ -265,6 +265,21 @@
             </div>
 
             <div class="settings-group">
+              <div class="settings-menu-row" data-page="settings-shortcuts">
+                <div class="settings-menu-icon">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M6 8h.01"/><path d="M10 8h.01"/><path d="M14 8h.01"/><path d="M18 8h.01"/><path d="M8 12h.01"/><path d="M12 12h.01"/><path d="M16 12h.01"/><path d="M7 16h10"/></svg>
+                </div>
+                <div class="settings-menu-label">
+                  <span class="settings-menu-title">快捷键</span>
+                  <span class="settings-menu-summary">Ctrl+H / R / Q</span>
+                </div>
+                <div class="settings-menu-chevron">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-group">
               <div class="settings-menu-row" data-page="settings-general">
                 <div class="settings-menu-icon">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -416,6 +431,14 @@
             </div>
           </div>
 
+          <!-- ── Shortcuts Subpage ── -->
+          <div id="settings-shortcuts" class="settings-page">
+            <div class="settings-group" id="shortcuts-list">
+              <!-- Rendered by JS from config.shortcuts.bindings -->
+            </div>
+            <div class="setting-page-hint">点击任意行设置快捷键，按下组合键绑定。冲突会红色提示。</div>
+          </div>
+
           <!-- ── General Subpage ── -->
           <div id="settings-general" class="settings-page">
             <div class="settings-group">
@@ -426,6 +449,14 @@
               <div class="setting-info-row">
                 <span class="setting-info-label">通知模式</span>
                 <span class="setting-info-value" id="settings-notif-mode">弹窗</span>
+              </div>
+              <div class="setting-field-row notif-toggle-row">
+                <label class="setting-field-label" style="min-width:0;flex:1">开机启动</label>
+                <input type="checkbox" class="notif-toggle" id="toggle-autostart" />
+              </div>
+              <div class="setting-field-row notif-toggle-row">
+                <label class="setting-field-label" style="min-width:0;flex:1">左键点击切换窗口</label>
+                <input type="checkbox" class="notif-toggle" id="toggle-left-click" />
               </div>
               <div class="setting-info-row">
                 <span class="setting-info-label">版本号</span>

@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::fs;
 
@@ -25,6 +26,12 @@ pub struct Settings {
     /// Whether the first-run onboarding wizard has been completed.
     #[serde(default)]
     pub first_run_done: bool,
+    /// User-customizable global shortcuts
+    #[serde(default)]
+    pub shortcuts: ShortcutConfig,
+    /// System integration settings (left-click, etc.)
+    #[serde(default)]
+    pub system: SystemConfig,
 }
 
 impl Default for Settings {
@@ -45,6 +52,8 @@ impl Default for Settings {
             notification: NotificationConfig::default(),
             data_dir: String::new(),
             first_run_done: false,
+            shortcuts: ShortcutConfig::default(),
+            system: SystemConfig::default(),
         }
     }
 }
@@ -64,6 +73,43 @@ pub struct NotificationConfig {
     pub rogue_reminder_time: String,
     pub digest_enabled: bool,
     pub digest_time: String,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
+pub struct ShortcutConfig {
+    /// action_id → accelerator string
+    pub bindings: BTreeMap<String, String>,
+    /// System conflicts (runtime only, not persisted)
+    #[serde(skip)]
+    pub conflicts: Vec<String>,
+}
+
+impl Default for ShortcutConfig {
+    fn default() -> Self {
+        Self {
+            bindings: BTreeMap::from([
+                ("toggle_window".into(), "Ctrl+Shift+H".into()),
+                ("refresh".into(), "Ctrl+Shift+R".into()),
+                ("quit".into(), "Ctrl+Shift+Q".into()),
+            ]),
+            conflicts: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
+pub struct SystemConfig {
+    pub left_click_toggle: bool,
+}
+
+impl Default for SystemConfig {
+    fn default() -> Self {
+        Self {
+            left_click_toggle: true,
+        }
+    }
 }
 
 impl Default for NotificationConfig {
@@ -210,6 +256,8 @@ impl Settings {
             notification: json.get("notification").map(|v| serde_json::from_value(v.clone()).unwrap_or_default()).unwrap_or_default(),
             data_dir: json.get("data_dir").and_then(|v| v.as_str()).unwrap_or("").to_string(),
             first_run_done: json.get("first_run_done").and_then(|v| v.as_bool()).unwrap_or(true),
+            shortcuts: json.get("shortcuts").map(|v| serde_json::from_value(v.clone()).unwrap_or_default()).unwrap_or_default(),
+            system: json.get("system").map(|v| serde_json::from_value(v.clone()).unwrap_or_default()).unwrap_or_default(),
         }
     }
 
@@ -231,6 +279,8 @@ impl Settings {
             notification: NotificationConfig::default(),
             data_dir: String::new(),
             first_run_done: false,
+            shortcuts: ShortcutConfig::default(),
+            system: SystemConfig::default(),
         }
     }
 

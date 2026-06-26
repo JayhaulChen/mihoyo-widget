@@ -101,6 +101,8 @@ async function saveCurrentSettings() {
     region: config?.region || 'prod_gf_cn',
     poll_interval_secs: config?.poll_interval_secs || 90,
     data_dir: config?.data_dir || '',
+    shortcuts: config?.shortcuts || { bindings: { toggle_window: 'Ctrl+Shift+H', refresh: 'Ctrl+Shift+R', quit: 'Ctrl+Shift+Q' } },
+    system: config?.system || { left_click_toggle: true },
   };
   // Collect notification settings
   const notif = {};
@@ -130,6 +132,153 @@ async function saveCurrentSettings() {
     config = nc;
   } catch (e) {
     console.error('保存失败:', e);
+  }
+}
+
+// ── Shortcut key recording state ──
+let _recordingAction = null;
+
+const SHORTCUT_LABELS = {
+  toggle_window: '显示/隐藏窗口',
+  refresh: '刷新数据',
+  quit: '退出应用',
+};
+
+function renderShortcuts() {
+  const list = $('shortcuts-list');
+  if (!list || !config?.shortcuts?.bindings) return;
+  const bindings = config.shortcuts.bindings;
+  list.innerHTML = '';
+  for (const [action, accelerator] of Object.entries(bindings)) {
+    const row = document.createElement('div');
+    row.className = 'setting-field-row shortcut-row';
+    row.dataset.action = action;
+
+    const label = document.createElement('span');
+    label.className = 'setting-field-label';
+    label.style.minWidth = '0';
+    label.style.flex = '1';
+    label.textContent = SHORTCUT_LABELS[action] || action;
+
+    const keyEl = document.createElement('span');
+    keyEl.className = 'shortcut-key';
+    keyEl.textContent = accelerator;
+
+    const conflictEl = document.createElement('span');
+    conflictEl.className = 'shortcut-conflict hidden';
+
+    row.appendChild(label);
+    row.appendChild(keyEl);
+    row.appendChild(conflictEl);
+
+    row.addEventListener('click', () => startRecording(row, action, keyEl, conflictEl));
+
+    list.appendChild(row);
+  }
+}
+
+function startRecording(row, action, keyEl, conflictEl) {
+  if (_recordingAction === action) return;
+  _recordingAction = action;
+  row.classList.add('recording');
+  keyEl.textContent = '按下快捷键...';
+
+  const handler = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Ignore modifier-only keys
+    if (e.key === 'Shift' || e.key === 'Control' || e.key === 'Alt' || e.key === 'Meta') return;
+    const combo = [];
+    if (e.ctrlKey || e.metaKey) combo.push('Ctrl');
+    if (e.altKey) combo.push('Alt');
+    if (e.shiftKey) combo.push('Shift');
+    // Map key names
+    let key = e.key;
+    if (key === ' ') key = 'Space';
+    else if (key.length === 1) key = key.toUpperCase();
+    combo.push(key);
+    const accelerator = combo.join('+');
+
+    // Client-side conflict check
+    const bindings = config?.shortcuts?.bindings || {};
+    let conflictAction = null;
+    for (const [a, v] of Object.entries(bindings)) {
+      if (a !== action && v === accelerator) {
+        conflictAction = a;
+        break;
+      }
+    }
+
+    if (conflictAction) {
+      keyEl.textContent = accelerator;
+      conflictEl.textContent = `⚠ 与「${SHORTCUT_LABELS[conflictAction] || conflictAction}」冲突`;
+      conflictEl.classList.remove('hidden');
+      row.classList.remove('recording');
+      _recordingAction = null;
+      document.removeEventListener('keydown', handler);
+      return;
+    }
+
+    // Save & register
+    keyEl.textContent = accelerator;
+    conflictEl.classList.add('hidden');
+    row.classList.remove('recording');
+    config.shortcuts.bindings[action] = accelerator;
+    saveCurrentSettings();
+    invoke('register_shortcuts', { config: config.shortcuts }).then((conflicts) => {
+      if (conflicts && conflicts.length > 0) {
+        conflictEl.textContent = '⚠ 系统冲突：该快捷键无法注册';
+        conflictEl.classList.remove('hidden');
+      }
+    }).catch((e) => {
+      conflictEl.textContent = '⚠ 注册失败: ' + e;
+      conflictEl.classList.remove('hidden');
+    });
+
+    _recordingAction = null;
+    document.removeEventListener('keydown', handler);
+  };
+
+  document.addEventListener('keydown', handler);
+  // Cancel on click outside
+  const cancel = (e) => {
+    if (!row.contains(e.target)) {
+      keyEl.textContent = config?.shortcuts?.bindings[action] || '';
+      row.classList.remove('recording');
+      _recordingAction = null;
+      document.removeEventListener('keydown', handler);
+      document.removeEventListener('click', cancel);
+    }
+  };
+  setTimeout(() => document.addEventListener('click', cancel), 10);
+}
+
+// ── Autostart & system toggles ──
+async function loadSystemSettings() {
+  if (!config) return;
+  const leftClickToggle = $('toggle-left-click');
+  if (leftClickToggle && config.system) {
+    leftClickToggle.checked = config.system.left_click_toggle !== false;
+    leftClickToggle.addEventListener('change', () => {
+      config.system.left_click_toggle = leftClickToggle.checked;
+      saveCurrentSettings();
+    });
+  }
+
+  const autostartToggle = $('toggle-autostart');
+  if (autostartToggle) {
+    try {
+      const enabled = await invoke('is_autostart_enabled');
+      autostartToggle.checked = enabled;
+    } catch (e) {
+      autostartToggle.checked = false;
+    }
+    autostartToggle.addEventListener('change', () => {
+      invoke('toggle_autostart', { enabled: autostartToggle.checked }).catch((e) => {
+        console.warn('Autostart toggle failed:', e);
+        autostartToggle.checked = !autostartToggle.checked;
+      });
+    });
   }
 }
 
@@ -306,6 +455,7 @@ function renderSettingsNav() {
     'settings-account': '账号',
     'settings-storage': '数据存储',
     'settings-notifications': '通知',
+    'settings-shortcuts': '快捷键',
     'settings-general': '通用',
   };
   titleEl.textContent = titles[currentPage] || '设置';
@@ -922,6 +1072,8 @@ async function loadSettingsForm() {
     updateNotifDependencies();
   }
   setupAutoSave();
+  renderShortcuts();
+  loadSystemSettings();
   if (typeof updateSettingsSummary === 'function') updateSettingsSummary();
 }
 
