@@ -7,6 +7,7 @@
     "build": "cd packages/frontend && npm run build",
     "preview": "cd packages/frontend && npm run preview",
     "install": "cd packages/frontend && npm install",
+    "tauri": "cd apps/desktop && cargo tauri dev",
     "prepare": "husky"
   },
   "devDependencies": {

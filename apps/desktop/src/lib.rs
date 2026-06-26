@@ -8,7 +8,6 @@ use game_hsr::notify::{check_rules, check_digest};
 use mihoyo_core::cache::CacheDb;
 use mihoyo_core::config::settings::{Settings, ShortcutConfig};
 use tauri::{AppHandle, Emitter, Manager, State};
-use tauri_plugin_global_shortcut::GlobalShortcutExt;
 use tokio::sync::Mutex;
 
 const POLL_INTERVAL_SECS: u64 = 90;
@@ -376,6 +375,41 @@ fn _on_captured_cookies(app: AppHandle, cookie: String, stoken: String, stuid: S
     }));
 }
 
+fn run_shortcut_action(app: &tauri::AppHandle, action: &str) {
+    match action {
+        "toggle_window" => {
+            if let Some(w) = app.get_webview_window("main") {
+                if w.is_visible().unwrap_or(false) {
+                    let _ = w.hide();
+                } else {
+                    let _ = w.show();
+                    let _ = w.set_focus();
+                }
+            }
+        }
+        "refresh" => {
+            let _ = app.emit("manual-refresh", ());
+        }
+        "quit" => {
+            app.exit(0);
+        }
+        _ => {}
+    }
+}
+
+fn register_shortcut_binding(
+    app: &tauri::AppHandle,
+    action: &str,
+    accelerator: &str,
+) -> Result<(), tauri_plugin_global_shortcut::Error> {
+    use tauri_plugin_global_shortcut::GlobalShortcutExt;
+    let action = action.to_string();
+    app.global_shortcut().on_shortcut(accelerator, move |h, _, _| {
+        run_shortcut_action(h, &action);
+    })?;
+    Ok(())
+}
+
 // ── Global Shortcut commands ──
 
 #[tauri::command]
@@ -389,15 +423,18 @@ async fn register_shortcuts(
     // Unregister all currently registered shortcuts
     app.global_shortcut().unregister_all().ok();
 
-    // Register each binding
+    // Register each binding with on_shortcut (captures action closure)
     let mut conflicts: Vec<String> = Vec::new();
     for (action, accelerator) in &config.bindings {
         if accelerator.is_empty() {
             continue;
         }
-        if let Err(e) = app.global_shortcut().register(accelerator.as_str()) {
-            log::warn!("Shortcut '{}' ({}) registration failed: {}", action, accelerator, e);
-            conflicts.push(format!("{}: {}", action, e));
+        match register_shortcut_binding(&app, action, accelerator) {
+            Ok(()) => {}
+            Err(e) => {
+                log::warn!("Shortcut '{}' ({}) registration failed: {}", action, accelerator, e);
+                conflicts.push(format!("{}: {}", action, e));
+            }
         }
     }
 
@@ -553,40 +590,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_global_shortcut::Builder::new().with_handler(|app: &tauri::AppHandle, shortcut: &tauri_plugin_global_shortcut::Shortcut, event: tauri_plugin_global_shortcut::ShortcutEvent| {
-            if event.state() != tauri_plugin_global_shortcut::ShortcutState::Pressed {
-                return;
-            }
-            let accelerator = shortcut.to_string();
-            let action = {
-                let state = app.state::<AppState>();
-                let guard = state.config_data.blocking_lock();
-                guard.shortcuts.bindings.iter()
-                    .find(|(_, v)| *v == &accelerator)
-                    .map(|(k, _)| k.clone())
-            };
-            if let Some(action) = action {
-                match action.as_str() {
-                    "toggle_window" => {
-                        if let Some(w) = app.get_webview_window("main") {
-                            if w.is_visible().unwrap_or(false) {
-                                let _ = w.hide();
-                            } else {
-                                let _ = w.show();
-                                let _ = w.set_focus();
-                            }
-                        }
-                    }
-                    "refresh" => {
-                        let _ = app.emit("manual-refresh", ());
-                    }
-                    "quit" => {
-                        app.exit(0);
-                    }
-                    _ => {}
-                }
-            }
-        }).build())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             Some(vec![]),
@@ -675,7 +679,7 @@ pub fn run() {
                     if accelerator.is_empty() {
                         continue;
                     }
-                    if let Err(e) = app.global_shortcut().register(accelerator.as_str()) {
+                    if let Err(e) = register_shortcut_binding(app.handle(), action, accelerator) {
                         log::warn!("Shortcut '{}' ({}) registration failed: {}", action, accelerator, e);
                     }
                 }
