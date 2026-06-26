@@ -34,11 +34,27 @@
 
 内部 lib crate（core、game-hsr）的版本不维护、永远不 bump。
 
+### 发版触发条件
+
+当且仅当以下任一条件满足时，应打 tag 发布新版：
+
+1. **有新的 `feat:` commit 进入 main**（minor bump）
+2. **有 breaking change 进入 main**（major bump）
+3. **上一次发版后 fix 积累较多**，且短期没有新的 feat 计划（patch bump）
+
+以下情况**不**发版：
+- 只有 fix/test/docs/chore/style 进入 main
+- 功能还在 dev branch 上未合入 main
+- dev branch 上的零散 commit（发版只针对 main）
+
 ### Tag
 
 格式：`v{major}.{minor}.{patch}`，例如 `v0.2.0`。
 
-Tag 打在发布 commit 上。Commit 包含：
+Tag 打在发布 commit 上。打 tag 前确认该 commit 是 branch 上最后一个 commit（之后不能再追加）。
+Release workflow 从 tag 指向的 commit 构建，不包含之后的改动。
+
+Tag commit 包含：
 1. `tauri.conf.json` 版本 bump
 2. `apps/desktop/Cargo.toml` 版本 bump
 3. `CHANGELOG.md` 更新
