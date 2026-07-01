@@ -15,10 +15,13 @@ Multi-platform, with workspace layout ready for future game support
 - **活动·档案** — Monthly stellar jade ledger, active card pools,
   limited-time events with countdown and progress bars, Simulated
   Universe archives (Nous/Magic/Locust)
-- **System tray** — Always-on notification area icon, right-click menu
-  (show/hide, refresh, quit). Toggle between **window mode** and
-  **notification-only mode** (background polling + system notifications,
-  no UI window)
+- **System tray** — Always-on notification area icon, left/right-click
+  menus (show/hide, refresh, quit). Global shortcuts for toggle window,
+  refresh, quit (customizable, with conflict detection). Left-click tray
+  toggle window visibility (configurable).
+  Toggle between **window mode** and **notification-only mode**
+  (background polling + system notifications, no UI window)
+- **Autostart** — One-click toggle in settings to launch on login
 - **Theme toggle** — Dark/Light mode, persisted to localStorage
 - **Desktop notifications** — Configurable rules: stamina threshold
   sliders, expedition completion, sign-in reminders, weekly rogue score
